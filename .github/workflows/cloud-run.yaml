@@ -15,13 +15,15 @@
 on:
   push:
     branches:
-    - example
+    - main
 
 name: Build and Deploy to Cloud Run
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT }}
-  SERVICE: YOUR_SERVICE_NAME
-  REGION: YOUR_SERVICE_REGION
+  SERVICE: ml-api
+  REGION: us-central1
+  BASIC_AUTH_USERNAME: ${{ secrets.BASIC_AUTH_USERNAME }}
+  BASIC_AUTH_PASSWORD: ${{ secrets.BASIC_AUTH_PASSWORD }}
 
 jobs:
   deploy:
@@ -37,18 +39,18 @@ jobs:
       uses: actions/checkout@v3
 
     # Configure Workload Identity Federation and generate an access token.
-    - id: 'auth'
-      name: 'Authenticate to Google Cloud'
-      uses: 'google-github-actions/auth@v0'
-      with:
-        workload_identity_provider: 'projects/123456789/locations/global/workloadIdentityPools/my-pool/providers/my-provider'
-        service_account: 'my-service-account@my-project.iam.gserviceaccount.com'
-
-    # Alternative option - authentication via credentials json
     # - id: 'auth'
+    #   name: 'Authenticate to Google Cloud'
     #   uses: 'google-github-actions/auth@v0'
     #   with:
-    #     credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
+    #     workload_identity_provider: 'projects/123456789/locations/global/workloadIdentityPools/my-pool/providers/my-provider'
+    #     service_account: 'github-actions@caramel-abode-354805.iam.gserviceaccount.com'
+        
+    # Alternative option - authentication via credentials json
+    - id: 'auth'
+      uses: 'google-github-actions/auth@v0'
+      with:
+        credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
 
     # Setup gcloud CLI
     - name: Set up Cloud SDK
@@ -59,8 +61,13 @@ jobs:
 
     - name: Build and Push Container
       run: |-
-        docker build -t gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE }}:${{  github.sha }} .
-        docker push gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE }}:${{  github.sha }}
+#        docker build -t gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE }}:${{  github.sha }} --build-arg BASIC_AUTH_USERNAME=${{ env.BASIC_AUTH_USERNAME }} --build-arg BASIC_AUTH_PASSWORD=${{ env.BASIC_AUTH_PASSWORD }} .
+#        docker push gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE }}:${{  github.sha }}
+
+          gcloud builds submit \
+            --quiet \
+            --config cloudbuild.yaml \
+            --subtitutions _BASIC_AUTH_USERNAME=$BASIC_AUTH_USERNAME, _BASIC_AUTH_PASSWORD=$BASIC_AUTH_PASSWORD, _IMAGE_TAG=gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE }}:${{  github.sha }}
 
     - name: Deploy to Cloud Run
       run: |-
@@ -68,4 +75,6 @@ jobs:
           --region ${{ env.REGION }} \
           --image gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE }}:${{  github.sha }} \
           --platform "managed" \
-          --quiet
+          --quiet \
+          --allow-unauthenticated \
+          --port 5000
