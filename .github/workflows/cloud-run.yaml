@@ -56,18 +56,23 @@ jobs:
     - name: Set up Cloud SDK
       uses: google-github-actions/setup-gcloud@v0
 
-    - name: Authorize Docker push
-      run: gcloud auth configure-docker
+    # - name: Authorize Docker push
+    #   run: gcloud auth configure-docker
 
-    - name: Build and Push Container
-      run: |-
+    # - name: Build and Push Container
+    #   run: |-
 #        docker build -t gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE }}:${{  github.sha }} --build-arg BASIC_AUTH_USERNAME=${{ env.BASIC_AUTH_USERNAME }} --build-arg BASIC_AUTH_PASSWORD=${{ env.BASIC_AUTH_PASSWORD }} .
 #        docker push gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE }}:${{  github.sha }}
 
+    - name: Build and Push Container
+      run: |-
           gcloud builds submit \
             --quiet \
             --config cloudbuild.yaml \
-            --subtitutions _BASIC_AUTH_USERNAME=$BASIC_AUTH_USERNAME, _BASIC_AUTH_PASSWORD=$BASIC_AUTH_PASSWORD, _IMAGE_TAG=gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE }}:${{  github.sha }}
+            --subtitutions _BASIC_AUTH_USERNAME=$BASIC_AUTH_USERNAME, _BASIC_AUTH_PASSWORD=$BASIC_AUTH_PASSWORD, _IMAGE_TAG=gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE }}:${{  github.sha }}      
+
+#        docker build -t gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE }}:${{  github.sha }} --build-arg BASIC_AUTH_USERNAME=${{ env.BASIC_AUTH_USERNAME }} --build-arg BASIC_AUTH_PASSWORD=${{ env.BASIC_AUTH_PASSWORD }} .
+#        docker push gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE }}:${{  github.sha }}
 
     - name: Deploy to Cloud Run
       run: |-
